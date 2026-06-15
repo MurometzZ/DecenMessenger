@@ -1,0 +1,12 @@
+# Rust build output
+/target
+**/*.rs.bk
+
+# macOS
+.DS_Store
+
+# Local editor / tool state
+.idea/
+.vscode/
+*.swp
+
