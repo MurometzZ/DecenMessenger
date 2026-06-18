@@ -22,15 +22,21 @@ enum Packet {
     Ping,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct Settings {
+    server_address: String,
+    server_port: String,
+}
+
 fn main() {
     let mut stream = TcpStream::connect("0.0.0.0:2345").unwrap();
     println!("Connected to server!");
 
     println!("Enter name: ");
-    let name = get_input();
+    let name = get_input().trim().to_string();
 
     let packet = Packet::Join {
-        name: name.clone().trim().to_string(),
+        name: name.clone(),
     };
 
     let json = serde_json::to_string(&packet).unwrap();
@@ -38,12 +44,17 @@ fn main() {
     let _ = stream.write_all(json.as_bytes()).unwrap();
 
     loop {
-        println!("Enter the message: ");
-        let message = get_input();
+        print!("Enter the message: ");
+        io::stdout().flush().unwrap();
+        let message = get_input().trim().to_string();
+
+        if message == "" {
+            continue;
+        }
 
         let packet = Packet::Chat {
-            name: name.clone().trim().to_string(),
-            message: message.trim().to_string(),
+            name: name.clone(),
+            message: message,
         };
 
         let json = serde_json::to_string(&packet).unwrap();

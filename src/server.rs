@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::thread;
 use std::net::{TcpListener, TcpStream};
 extern crate serde;
 use serde::{Serialize, Deserialize};
@@ -26,10 +27,12 @@ fn main() {
     println!("Server started");
 
     for connection in stream.incoming() {
-        handle_client(connection.unwrap());
+        thread::spawn(move || {
+            handle_client(connection.unwrap());
+        });
     }
 }
-// TODO Add async to support multiple clients
+
 fn handle_client(mut stream: TcpStream) {
     loop {
         let Some(data) = recieve_data(&mut stream)
