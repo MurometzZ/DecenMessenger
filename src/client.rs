@@ -73,13 +73,13 @@ fn main() {
         io::stdout().flush().unwrap();
         let message = get_input().trim().to_string();
 
-        if message == "" {
+        if message.is_empty() {
             continue;
         }
 
         let packet = Packet::Chat {
             name: name.clone(),
-            message: message,
+            message,
         };
 
         send_packet(&packet, &mut stream);
