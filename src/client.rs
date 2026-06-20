@@ -82,7 +82,7 @@ fn main() {
             message: message,
         };
 
-        send_packet(packet, &mut stream);
+        send_packet(&packet, &mut stream);
     }
 }
 

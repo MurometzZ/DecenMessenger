@@ -1,24 +1,8 @@
+use std::io::{Read, Write};
+use std::net::TcpStream;
+use crate::Packet;
 
-#[derive(Serialize, Deserialize)]
-enum Packet {
-    Chat {
-        name: String,
-        message: String,
-    },
-
-    Join {
-        name: String,
-    },
-
-    Leave {
-        name: String,
-    },
-
-    Ping,
-}
-
-
-pub fn send_packet(packet: Packet, stream: &mut TcpStream) {
+pub fn send_packet(packet: &Packet, stream: &mut TcpStream) {
     let json = serde_json::to_string(&packet).unwrap();
 
     let _ = stream.write_all(json.as_bytes()).unwrap();
