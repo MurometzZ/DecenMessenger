@@ -1,33 +1,11 @@
-mod utils;
-use std::io::{Read, Write};
-use std::io::{BufReader};
-use std::io;
-use std::fs::File;
+use std::fs;
+use std::io::{self, BufReader, Write};
 use std::net::TcpStream;
 use std::thread;
-use utils::{receive_packet, send_packet};
-extern crate serde;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use decen_messenger::{receive_packet, send_packet, Packet};
 
 #[derive(Serialize, Deserialize)]
-enum Packet {
-    Chat {
-        name: String,
-        message: String,
-    },
-
-    Join {
-        name: String,
-    },
-
-    Leave {
-        name: String,
-    },
-
-    Ping,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 struct Settings {
     server_ip: String,
     server_port: String,
@@ -37,151 +15,82 @@ fn main() {
     println!("Enter name: ");
     let name = get_input().trim().to_string();
 
-    let server_ip;
-    let server_port;
-    loop {
-        match get_settings() {
-            Some(settings) => {
-                println!("Got settings: ip={}, port={}", settings.server_ip, settings.server_port);
-                server_ip = settings.server_ip;
-                server_port = settings.server_port;
-                break;
-            }
-            None => {
-                set_settings();
-            }
+    let settings = loop {
+        match load_settings() {
+            Some(s) => break s,
+            None => configure_settings(),
         }
-    }
+    };
 
-    let address = format!("{}:{}", server_ip, server_port);
-    let mut stream = TcpStream::connect(address).unwrap();
+    let address = format!("{}:{}", settings.server_ip, settings.server_port);
+    let mut stream = TcpStream::connect(&address).unwrap();
 
     let mut read_stream = stream.try_clone().unwrap();
-    thread::spawn(move || {
-        listen_for_packets(&mut read_stream);
-    });
+    thread::spawn(move || listen_for_packets(&mut read_stream));
 
-    let packet = Packet::Join {
-        name: name.clone(),
-    };
+    send_packet(&Packet::Join { name: name.clone() }, &mut stream);
     println!("Connected to server!");
-
-    send_packet(&packet, &mut stream);
 
     loop {
         print!("Enter the message: ");
         io::stdout().flush().unwrap();
         let message = get_input().trim().to_string();
-
         if message.is_empty() {
             continue;
         }
-
-        let packet = Packet::Chat {
-            name: name.clone(),
-            message,
-        };
-
-        send_packet(&packet, &mut stream);
+        send_packet(&Packet::Chat { name: name.clone(), message }, &mut stream);
     }
 }
 
 fn listen_for_packets(stream: &mut TcpStream) {
     let mut reader = BufReader::new(stream);
     loop {
-        let Some(data) = receive_packet(&mut reader)
-            else {
-                println!("Lost connection with server");
-                break;
-            };
-
+        let Some(data) = receive_packet(&mut reader) else {
+            println!("Lost connection with server");
+            break;
+        };
         match data {
-            Packet::Chat {name, message} => {
-                println!("{}: {}", name, message);
-            }
-            Packet::Join {name} => {
-                println!("----- {} joined the chat -----", name);
-            }
-            Packet::Leave {name} => {
-                println!("----- {} left the chat -----", name);
-            }
-            _ => {
-                println!("Unexpected packet");
-            }
+            Packet::Chat { name, message } => println!("{name}: {message}"),
+            Packet::Join { name } => println!("----- {name} joined -----"),
+            Packet::Leave { name } => println!("----- {name} left -----"),
+            _ => {}
         }
     }
 }
 
 fn get_input() -> String {
     let mut input = String::new();
-
-    let _ = io::stdin().read_line(&mut input);
-
+    io::stdin().read_line(&mut input).ok();
     input
 }
 
-fn get_settings() -> Option<Settings> {
-    let mut file = match File::open("settings.json") {
-        Ok(file) => file,
-        Err(_) => {
-            return None // if file doesn't exist
-        }
-    };
-
-    let mut data = String::new();
-
-    match file.read_to_string(&mut data) {
-        Ok(_) => {}
-        Err(_) => {
-            return None // if file corrupted
-        }
-    }
-
-    let parsed: Result<Settings, _> = serde_json::from_str(&data);
-    match parsed {
-        Ok(settings) => {
-            Some(settings)
-        }
-        Err(e) => {
-            println!("Error: {}", e);
-
-            None
-        }
-    }
+fn load_settings() -> Option<Settings> {
+    let data = fs::read_to_string("settings.json").ok()?;
+    serde_json::from_str(&data).ok()
 }
 
-fn set_settings() {
-    print!("Would you like to set settings or use defaults? (Default/yes): ");
+fn configure_settings() {
+    print!("Would you like to set settings or use defaults? (default/yes): ");
     io::stdout().flush().unwrap();
-    let decision = get_input().trim().to_string().to_lowercase();
+    let decision = get_input().trim().to_lowercase();
 
-    let server_ip: String;
-    let server_port: String;
-
-    if decision == "default" || decision == "d" {
-        server_ip = String::from("0.0.0.0");
-        server_port = String::from("2345");
-    }
-    else if decision == "yes" || decision == "y" {
-        print!("Enter the server IP: ");
-        io::stdout().flush().unwrap();
-        server_ip = get_input().trim().to_string();
-
-        print!("Enter the server port: ");
-        io::stdout().flush().unwrap();
-        server_port = get_input().trim().to_string();
-    }
-    else {
-        println!("Must enter 'yes' or 'default'");
-        return;
-    }
-
-    let settings: Settings = Settings {
-        server_ip,
-        server_port,
+    let (server_ip, server_port) = match decision.as_str() {
+        "default" | "d" => (String::from("0.0.0.0"), String::from("2345")),
+        "yes" | "y" => {
+            print!("Enter the server IP: ");
+            io::stdout().flush().unwrap();
+            let ip = get_input().trim().to_string();
+            print!("Enter the server port: ");
+            io::stdout().flush().unwrap();
+            let port = get_input().trim().to_string();
+            (ip, port)
+        }
+        _ => {
+            println!("Must enter 'yes' or 'default'");
+            return;
+        }
     };
 
-    let json_data = serde_json::to_string(&settings).unwrap();
-    let mut file = File::create("settings.json").unwrap();
-    let _ = file.write_all(json_data.as_bytes());
+    let settings = Settings { server_ip, server_port };
+    fs::write("settings.json", serde_json::to_string(&settings).unwrap()).unwrap();
 }
