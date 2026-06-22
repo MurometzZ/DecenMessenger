@@ -19,6 +19,7 @@ fn main() {
 }
 
 fn handle_client(stream: &mut TcpStream, clients: Arc<Mutex<Vec<TcpStream>>>) {
+    let sender_address = stream.peer_addr().unwrap();
     let mut reader = BufReader::new(stream);
     loop {
         let Some(data) = receive_packet(&mut reader) else {
@@ -33,8 +34,12 @@ fn handle_client(stream: &mut TcpStream, clients: Arc<Mutex<Vec<TcpStream>>>) {
             _ => {}
         }
 
+        // NOTE: Comparing by address might not be best way to compare, might need to rework
         for client in clients.lock().unwrap().iter_mut() {
-            send_packet(&data, client);
+            // compare sender and receiver to not send back packet to sender
+            if client.peer_addr().unwrap() != sender_address {
+                send_packet(&data, client);
+            }
         }
     }
 }
