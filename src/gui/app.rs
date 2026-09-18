@@ -13,12 +13,12 @@ impl MessengerApp {
 }
 
 impl eframe::App for MessengerApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("DecenMessenger");
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        ui.heading("DecenMessenger");
 
-            ui.separator();
+        ui.separator();
 
+        ui.horizontal(|ui| {
             ui.text_edit_singleline(&mut self.message);
 
             if ui.button("Send").clicked() {
