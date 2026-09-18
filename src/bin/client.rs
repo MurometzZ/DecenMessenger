@@ -3,7 +3,8 @@ use std::io::{self, BufReader, Write};
 use std::net::TcpStream;
 use std::thread;
 use serde::{Deserialize, Serialize};
-use decen_messenger::{receive_packet, send_packet, Packet};
+use decen_messenger::network::{receive_packet, send_packet};
+use decen_messenger::protocol::Packet;
 
 #[derive(Serialize, Deserialize)]
 struct Settings {

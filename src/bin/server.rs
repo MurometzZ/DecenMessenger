@@ -2,7 +2,8 @@ use std::io::BufReader;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use decen_messenger::{receive_packet, send_packet, Packet};
+use decen_messenger::network::{receive_packet, send_packet};
+use decen_messenger::protocol::Packet;
 
 fn main() {
     let listener = TcpListener::bind("0.0.0.0:2345").unwrap();
