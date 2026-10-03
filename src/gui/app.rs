@@ -1,30 +1,36 @@
 use eframe::egui;
 
-pub struct MessengerApp {
-    message: String,
+fn main() -> eframe::Result {
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 300.0]),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "Decen Messenger",
+        options,
+        Box::new(|_cc| Ok(Box::new(MyApp::default()))),
+    )
 }
 
-impl MessengerApp {
-    pub fn new() -> Self {
+pub struct MyApp {
+    name: String,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
         Self {
-            message: String::new(),
+            name: "World".to_string(),
         }
     }
 }
 
-impl eframe::App for MessengerApp {
+impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        ui.heading("DecenMessenger");
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            ui.text_edit_singleline(&mut self.message);
-
-            if ui.button("Send").clicked() {
-                println!("Message: {}", self.message);
-                self.message.clear();
-            }
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.heading("Privet world!");
+            ui.label("Testing the gui build using egui");
+            ui.label(format!("Hello {}!", self.name));
         });
     }
 }
